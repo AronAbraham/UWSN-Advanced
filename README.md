@@ -1,83 +1,168 @@
-# Underwater Wireless Sensor Network Simulator
+# Underwater Wireless Sensor Network (UWSN) Simulator
 
-A web-based visualization tool for simulating underwater wireless sensor networks based on NS-3 simulation code.
+## Overview
+A high-fidelity visualization and simulation platform for underwater wireless sensor networks, built upon NS-3 simulation framework. This tool enables researchers and engineers to analyze the performance of various underwater routing protocols in realistic marine environments.
 
-## Features
+## Technical Specifications
 
-- 3D visualization of underwater sensor nodes and sink nodes
-- Interactive visualization of packet transmission between nodes
-- Support for different routing protocols (VBF, HHVBF, DBR, EEDBR)
-- Configurable simulation parameters
-- Real-time statistics during simulation
-- Responsive web interface
+### Network Parameters
+- **Node Deployment**: 3D underwater space with configurable depth ranges
+- **Network Scale**: Support for up to 500 sensor nodes
+- **Sink Nodes**: Configurable surface-level sink node deployment
+- **Transmission Range**: Adjustable based on underwater acoustic propagation models
+- **Energy Model**: Based on UWSN energy consumption patterns with initial energy of 50 Joules
 
-## Installation
+### Routing Protocols
+1. **Vector-Based Forwarding (VBF)**
+   - Vector-based geometric routing
+   - Pipeline radius parameter: 0-100m
+   - Forwarding angle: 0-360°
+   - Energy threshold configurable
 
-1. Clone this repository
-2. Install dependencies
+2. **Hop-by-Hop Vector-Based Forwarding (HH-VBF)**
+   - Dynamic per-hop vector calculation
+   - Adaptive pipeline radius
+   - Enhanced void handling capabilities
+
+3. **Depth-Based Routing (DBR)**
+   - Pressure sensor-based forwarding
+   - Depth threshold: 0-100m
+   - Holding time calculation based on depth difference
+
+4. **Energy-Efficient DBR (EEDBR)**
+   - Residual energy consideration
+   - Layered forwarding mechanism
+   - Energy balancing algorithms
+
+5. **Optimized Link State Routing (OLSR)**
+   - Multipoint relay selection
+   - Topology control messages
+   - Route optimization for underwater environments
+
+### Performance Metrics
+- **Energy Efficiency**
+  - Average energy consumption (Joules)
+  - Network lifetime estimation
+  - Energy distribution analysis
+  - Residual energy tracking
+
+- **Network Performance**
+  - End-to-end delay (ms)
+  - Packet delivery ratio (%)
+  - Network throughput (bps)
+  - Control overhead analysis
+
+- **Quality of Service**
+  - Path optimization
+  - Load balancing metrics
+  - Network reliability assessment
+  - Coverage analysis
+
+## Implementation Details
+
+### Core Components
+```javascript
+// Main simulation parameters
+const simulationParameters = {
+  simDuration: 100,    // seconds
+  nodeCount: 150,      // sensor nodes
+  sinkCount: 1,        // sink nodes
+  mobilitySpeed: 1,    // m/s
+  dataRate: 100,       // bps
+  packetSize: 64,      // bytes
+  transmissionRange: 100, // meters
+  maxDepth: 500        // meters
+};
+```
+
+### Underwater Channel Model
+- Acoustic propagation model
+- Multipath fading effects
+- Doppler spread consideration
+- Ambient noise modeling
+
+### Mobility Model
+- 3D random walk
+- Current-based mobility
+- Configurable node speed
+- Depth constraints
+
+## Research Applications
+
+### 1. Protocol Analysis
+- Comparative performance evaluation
+- Energy efficiency studies
+- Scalability assessment
+- Reliability analysis
+
+### 2. Network Optimization
+- Parameter tuning
+- Deployment strategy evaluation
+- Coverage optimization
+- Energy consumption minimization
+
+### 3. Environmental Monitoring
+- Ocean data collection simulation
+- Sensor placement optimization
+- Event detection scenarios
+- Real-time monitoring capabilities
+
+## Installation and Setup
+
+### Prerequisites
+- Node.js (v14.0.0 or higher)
+- React (v17.0.0 or higher)
+- Three.js for 3D visualization
+- WebGL-compatible browser
+
+### Installation Steps
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/uwsn-simulator.git
    ```
+
+2. Install dependencies:
+   ```bash
+   cd uwsn-simulator
    npm install
    ```
-3. Start the development server
-   ```
+
+3. Start the development server:
+   ```bash
    npm start
    ```
-4. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-## Usage
+4. Access the simulator at `http://localhost:3000`
 
-1. Configure your simulation parameters in the Settings page
-2. Navigate to the Simulation page
-3. Click Start Simulation to begin the visualization
-4. Use your mouse to rotate, zoom, and pan the 3D view
-5. Monitor packet transmission and network statistics in real-time
+## Usage Guidelines
 
-## Simulation Parameters
+### Simulation Configuration
+1. Set network parameters
+2. Select routing protocol
+3. Configure environmental conditions
+4. Define mobility patterns
+5. Specify energy constraints
 
-- **Number of Sensor Nodes**: The number of underwater sensor nodes in the network
-- **Number of Sink Nodes**: The number of sink nodes (currently fixed at 1)
-- **Simulation Time**: The duration of the simulation in seconds
-- **Data Rate**: The data rate for packet transmission
-- **Packet Size**: The size of data packets in bytes
-- **Routing Protocol**: The algorithm used for routing packets (VBF, HHVBF, DBR, EEDBR)
-- **Number of Packets**: The total number of packets to send during the simulation
-- **Packet Interval**: The time interval between packet transmissions
-- **Node Movement Speed**: The speed at which nodes move in the underwater environment
+### Data Collection
+- Real-time performance metrics
+- CSV export functionality
+- Statistical analysis tools
+- Visualization options
 
-## Technologies Used
+### Visualization Features
+- 3D network topology
+- Packet transmission paths
+- Energy distribution maps
+- Node mobility patterns
 
-- React
-- Three.js (via React Three Fiber)
-- Styled Components
+## References
 
-## Original NS-3 Simulation Code
+1. Akyildiz, I. F., Pompili, D., & Melodia, T. (2005). Underwater acoustic sensor networks: Research challenges. Ad hoc networks, 3(3), 257-279.
 
-This web simulator is based on the following NS-3 simulation code:
+2. Xie, P., Cui, J. H., & Lao, L. (2006). VBF: Vector-Based Forwarding Protocol for Underwater Sensor Networks. Networking, 1216-1221.
 
-```cpp
-#include "ns3/netanim-module.h"
-#include "ns3/core-module.h"
-#include "ns3/network-module.h"
-#include "ns3/mobility-module.h"
-#include "ns3/energy-module.h"
-#include "ns3/aqua-sim-ng-module.h"
-#include "ns3/applications-module.h"
-#include "ns3/internet-module.h"
-#include "ns3/log.h"
-#include "ns3/callback.h"
-
-// Main simulation parameters
-double simStop = 100;
-int nodes = 150;
-int sink = 1;
-int speed = 1;
-uint32_t dataRate = 100;
-uint32_t packetSize = 64;
-int routingoption;
-uint32_t numPackets = 100;
-double interval = 1.0;
-```
+3. Yan, H., Shi, Z. J., & Cui, J. H. (2008). DBR: Depth-Based Routing for Underwater Sensor Networks. Networking, 72-86.
 
 ## License
 
-MIT 
+This project is licensed under the MIT License - see the LICENSE file for details.
