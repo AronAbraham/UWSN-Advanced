@@ -1,0 +1,1268 @@
+import React, { useState, useEffect, useRef } from 'react';
+import styled from 'styled-components';
+import { Canvas } from '@react-three/fiber';
+import { OrbitControls } from '@react-three/drei';
+import { SimulationModel } from './SimulationModel';
+import {
+  Box,
+  Typography,
+  Button,
+  Slider,
+  Select as MuiSelect,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  TextField,
+  Card,
+  CardContent,
+  Grid,
+  IconButton,
+  Tooltip,
+  Chip,
+  LinearProgress,
+  Collapse,
+  Alert,
+  useTheme
+} from '@mui/material';
+import {
+  PlayArrow,
+  Stop,
+  Refresh,
+  Download,
+  Settings as SettingsIcon,
+  WaterDrop,
+  Router,
+  Battery90,
+  Speed,
+  Timeline
+} from '@mui/icons-material';
+import { motion, AnimatePresence } from 'framer-motion';
+import Header from './Header';
+import Sidebar from './Sidebar';
+
+// Styled components with enhanced visuals
+const SimulationContainer = styled(Box)`
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: rgba(10, 10, 10, 0.8);
+  color: #ffffff;
+`;
+
+const ContentContainer = styled(Box)`
+  display: flex;
+  flex: 1;
+`;
+
+const MainContent = styled(Box)`
+  flex: 1;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 100%;
+  overflow-x: hidden;
+  position: relative;
+  z-index: 5;
+`;
+
+const StyledCard = styled(Card)`
+  background: rgba(20, 20, 20, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 255, 0, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  overflow: visible;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    border-color: rgba(0, 255, 0, 0.3);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 255, 0, 0.1);
+  }
+`;
+
+const CanvasContainer = styled(Box)`
+  position: relative;
+  height: 60vh;
+  min-height: 500px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.7) 0%, rgba(10, 10, 10, 0.9) 100%);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(30, 30, 30, 0.6);
+  z-index: 10;
+`;
+
+const ControlsSection = styled(motion.div)`
+  position: relative;
+`;
+
+const Legend = styled(Box)`
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  background-color: rgba(25, 25, 25, 0.6);
+  backdrop-filter: blur(10px);
+  padding: 16px 24px;
+  border-radius: 12px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(50, 50, 50, 0.5);
+`;
+
+const LegendItem = styled(Box)`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.85);
+`;
+
+const LegendDot = styled(Box)`
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: ${props => props.color};
+  box-shadow: 0 0 8px ${props => props.color};
+  margin-right: 10px;
+`;
+
+const StatusBar = styled(Box)`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 8px;
+  margin-top: 16px;
+  border: 1px solid rgba(30, 30, 30, 0.6);
+`;
+
+// Animation variants
+const fadeIn = {
+  hidden: { opacity: 0, y: 20 },
+  visible: (i) => ({
+    opacity: 1,
+    y: 0,
+    transition: {
+      delay: i * 0.1,
+      duration: 0.5,
+      ease: [0.4, 0, 0.2, 1]
+    }
+  })
+};
+
+const scaleIn = {
+  hidden: { scale: 0.9, opacity: 0 },
+  visible: {
+    scale: 1,
+    opacity: 1,
+    transition: {
+      duration: 0.5,
+      ease: [0.4, 0, 0.2, 1]
+    }
+  }
+};
+
+const Title = styled.h1`
+  color: #00ff00;
+  margin-bottom: 24px;
+  text-shadow: 0 0 15px rgba(0, 255, 0, 0.4);
+  font-size: 2.2rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  animation: glow 3s ease-in-out infinite;
+  position: relative;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: -8px;
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(90deg, #00ff00, rgba(0, 255, 0, 0.1));
+    border-radius: 2px;
+  }
+`;
+
+const Controls = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+  align-items: center;
+  background-color: rgba(25, 25, 25, 0.7);
+  backdrop-filter: blur(10px);
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(50, 50, 50, 0.5);
+  animation: slide-in 0.5s ease;
+  
+  &:hover {
+    border-color: rgba(0, 255, 0, 0.3);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 255, 0, 0.1);
+    transition: all 0.3s ease;
+  }
+`;
+
+const Label = styled.label`
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 500;
+`;
+
+const ControlGroup = styled.div`
+  margin-right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+  
+  &:hover ${Label} {
+    color: #00ff00;
+    transform: translateY(-2px);
+    transition: all 0.3s ease;
+  }
+`;
+
+const Input = styled.input`
+  width: 70px;
+  padding: 8px 12px;
+  border: 1px solid rgba(51, 51, 51, 0.8);
+  border-radius: 6px;
+  background-color: rgba(30, 30, 30, 0.6);
+  color: #ffffff;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  
+  &:focus {
+    border-color: #00ff00;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 255, 0, 0.15);
+    transform: scale(1.05);
+  }
+  
+  &:hover {
+    background-color: rgba(40, 40, 40, 0.6);
+    border-color: rgba(0, 255, 0, 0.3);
+  }
+`;
+
+const Select = styled.select`
+  padding: 8px 12px;
+  min-width: 120px;
+  border: 1px solid rgba(51, 51, 51, 0.8);
+  border-radius: 6px;
+  background-color: rgba(30, 30, 30, 0.6);
+  color: #ffffff;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2300ff00' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 16px;
+  padding-right: 32px;
+  
+  &:focus {
+    border-color: #00ff00;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 255, 0, 0.15);
+    transform: scale(1.02);
+  }
+  
+  &:hover {
+    background-color: rgba(40, 40, 40, 0.6);
+    border-color: rgba(0, 255, 0, 0.3);
+  }
+  
+  option {
+    background-color: #1a1a1a;
+    padding: 8px;
+  }
+`;
+
+const StyledButton = styled.button`
+  background-color: rgba(0, 0, 0, 0.5);
+  color: #00ff00;
+  border: 1px solid #00ff00;
+  border-radius: 6px;
+  padding: 10px 18px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+  position: relative;
+  overflow: hidden;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(225deg, rgba(0, 255, 0, 0) 0%, rgba(0, 255, 0, 0.1) 50%, rgba(0, 255, 0, 0) 100%);
+    z-index: 1;
+    transform: translateX(-100%);
+    transition: transform 0.6s ease;
+  }
+  
+  &:hover {
+    background-color: rgba(0, 255, 0, 0.15);
+    color: #00ff00;
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+    transform: translateY(-2px);
+    
+    &::after {
+      transform: translateX(100%);
+    }
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    
+    &:hover {
+      transform: none;
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+  }
+`;
+
+const SimulationView = styled.div`
+  height: 400px;
+  background-color: #b3daff;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  position: relative;
+`;
+
+const ViewControls = styled.div`
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 10;
+  display: flex;
+  gap: 10px;
+`;
+
+const ViewButton = styled.button`
+  background-color: rgba(0, 0, 0, 0.6);
+  color: #00ff00;
+  border: 1px solid rgba(0, 255, 0, 0.4);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(5px);
+  transform: translateY(0);
+  
+  &:hover {
+    background-color: rgba(0, 255, 0, 0.15);
+    border-color: #00ff00;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+    transform: translateY(-2px) scale(1.05);
+  }
+  
+  &.active {
+    background-color: rgba(0, 255, 0, 0.2);
+    border-color: #00ff00;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.4);
+    position: relative;
+    
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 30%;
+      height: 2px;
+      background: #00ff00;
+      border-radius: 2px;
+      animation: pulse 2s infinite;
+    }
+  }
+`;
+
+const StatsContainer = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 32px;
+`;
+
+const StatsCard = styled.div`
+  background-color: rgba(25, 25, 25, 0.7);
+  backdrop-filter: blur(10px);
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(50, 50, 50, 0.5);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  opacity: 0;
+  transform: translateY(20px);
+  animation: statsCardAppear 0.6s forwards;
+  animation-delay: var(--delay, 0.1s);
+  
+  @keyframes statsCardAppear {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+    border-color: rgba(0, 255, 0, 0.3);
+  }
+  
+  &:nth-child(2) {
+    --delay: 0.3s;
+  }
+`;
+
+const StatsTitle = styled.h3`
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #00ff00;
+  font-size: 18px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  
+  &:before {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background-color: #00ff00;
+    border-radius: 50%;
+    margin-right: 10px;
+    box-shadow: 0 0 8px #00ff00;
+    animation: pulse 2s infinite;
+  }
+`;
+
+const StatItem = styled.div`
+  margin-bottom: 12px;
+  font-size: 15px;
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+  
+  &:last-child {
+    margin-bottom: 0;
+    border-bottom: none;
+  }
+  
+  &:hover {
+    background-color: rgba(0, 255, 0, 0.05);
+    padding-left: 8px;
+    border-radius: 4px;
+  }
+  
+  span:last-child {
+    font-weight: 500;
+    color: rgba(0, 255, 0, 0.9);
+  }
+`;
+
+const SpeedSlider = styled.input`
+  width: 130px;
+  accent-color: #00ff00;
+  height: 6px;
+  outline: none;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+  margin-top: 8px;
+  position: relative;
+  cursor: pointer;
+  
+  &:hover {
+    opacity: 1;
+  }
+  
+  &::-webkit-slider-thumb {
+    background: #00ff00;
+    cursor: pointer;
+    height: 16px;
+    width: 16px;
+    border-radius: 50%;
+    box-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
+    transition: all 0.3s ease;
+    position: relative;
+    z-index: 2;
+  }
+  
+  &:hover::-webkit-slider-thumb {
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.8);
+    transform: scale(1.2);
+  }
+  
+  &::-moz-range-thumb {
+    background: #00ff00;
+    cursor: pointer;
+    height: 16px;
+    width: 16px;
+    border-radius: 50%;
+    box-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
+    transition: all 0.3s ease;
+  }
+  
+  &:hover::-moz-range-thumb {
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.8);
+    transform: scale(1.2);
+  }
+  
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 2px;
+    width: var(--value-percent, 0%);
+    background: linear-gradient(to right, #008800, #00ff00);
+    border-radius: 2px;
+    z-index: 1;
+    pointer-events: none;
+  }
+`;
+
+const ExportButton = styled(StyledButton)`
+  background-color: rgba(0, 0, 0, 0.5);
+  
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+  
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.7);
+  }
+`;
+
+const ProtocolDescription = styled.div`
+  background-color: rgba(25, 25, 25, 0.7);
+  backdrop-filter: blur(10px);
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  font-size: 15px;
+  line-height: 1.6;
+  border-radius: 12px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(50, 50, 50, 0.5);
+  color: rgba(255, 255, 255, 0.85);
+  position: relative;
+  overflow: hidden;
+  animation: slide-in 0.4s ease;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    border-color: rgba(0, 255, 0, 0.3);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 255, 0, 0.1);
+  }
+  
+  &::before {
+    content: '';
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    background: radial-gradient(circle, rgba(0, 255, 0, 0.1) 0%, rgba(0, 255, 0, 0) 70%);
+    border-radius: 50%;
+    top: -50px;
+    right: -50px;
+    opacity: 0.5;
+    animation: pulse 4s infinite;
+  }
+  
+  &::after {
+    content: '"';
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    font-size: 36px;
+    color: rgba(0, 255, 0, 0.2);
+    font-family: Georgia, serif;
+  }
+`;
+
+const SimulationCanvas = styled.div`
+  width: 100%;
+  height: 600px;
+  background-color: #001e2f;
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  transition: all 0.4s ease;
+  animation: canvasAppear 0.8s ease-out forwards;
+  opacity: 0;
+  transform: scale(0.98);
+  
+  @keyframes canvasAppear {
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  
+  &:hover {
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 255, 0, 0.1);
+  }
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, 
+      rgba(0, 255, 0, 0) 0%, 
+      rgba(0, 255, 0, 0.5) 50%,
+      rgba(0, 255, 0, 0) 100%);
+    z-index: 1;
+    animation: gradient-shift 8s linear infinite;
+    background-size: 200% 100%;
+  }
+`;
+
+const BatteryIndicator = styled.div`
+  width: 100%;
+  height: 20px;
+  background-color: rgba(30, 30, 30, 0.6);
+  border-radius: 10px;
+  margin: 15px 0;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: ${props => Math.max(0, Math.min(100, (1 - props.used / props.capacity) * 100))}%;
+    background: linear-gradient(90deg, #00ff00, #88ff88);
+    border-radius: 8px;
+    transition: width 0.5s ease;
+  }
+  
+  &::after {
+    content: '${props => Math.round((1 - props.used / props.capacity) * 100)}%';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    color: white;
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+  }
+`;
+
+// Add a styled component for the battery depleted notification
+const BatteryDepletedMessage = styled.div`
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(0, 0, 0, 0.8);
+  color: #e74c3c;
+  padding: 20px 30px;
+  border-radius: 12px;
+  font-size: 18px;
+  font-weight: bold;
+  text-align: center;
+  z-index: 100;
+  border: 1px solid #e74c3c;
+  box-shadow: 0 0 30px rgba(231, 76, 60, 0.5);
+  animation: batteryDepleted 0.3s ease-in forwards;
+  
+  @keyframes batteryDepleted {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+    100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  }
+  
+  span {
+    display: block;
+    font-size: 14px;
+    opacity: 0.8;
+    margin-top: 10px;
+    font-weight: normal;
+  }
+`;
+
+function Simulation() {
+  const theme = useTheme();
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [nodeCount, setNodeCount] = useState(20);
+  const [routingProtocol, setRoutingProtocol] = useState('HHVBF');
+  const [viewMode, setViewMode] = useState('3D');
+  const [packetSize, setPacketSize] = useState(64);
+  const [simulationSpeed, setSimulationSpeed] = useState(50);
+  const [timeElapsed, setTimeElapsed] = useState(0);
+  const [energyUsed, setEnergyUsed] = useState(0);
+  const [packetsSent, setPacketsSent] = useState(0);
+  const [packetsReceived, setPacketsReceived] = useState(0);
+  const [batteryDepleted, setBatteryDepleted] = useState(false);
+  const [simulationProgress, setSimulationProgress] = useState(0);
+  const [energyReadings, setEnergyReadings] = useState([]);
+  const [waterCurrent, setWaterCurrent] = useState({ x: 0, y: 0, z: 0 });
+  const timer = useRef(null);
+  const startTime = useRef(0);
+  const buttonRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (timer.current) {
+        clearInterval(timer.current);
+      }
+    };
+  }, []);
+
+  const createRipple = (event) => {
+    if (!buttonRef.current) return;
+
+    const button = buttonRef.current;
+
+    const circle = document.createElement("span");
+    const diameter = Math.max(button.clientWidth, button.clientHeight);
+    const radius = diameter / 2;
+
+    const buttonRect = button.getBoundingClientRect();
+
+    circle.style.width = circle.style.height = `${diameter}px`;
+    circle.style.left = `${event.clientX - buttonRect.left - radius}px`;
+    circle.style.top = `${event.clientY - buttonRect.top - radius}px`;
+    circle.classList.add("ripple");
+
+    const ripple = button.querySelector(".ripple");
+
+    if (ripple) {
+      ripple.remove();
+    }
+
+    button.appendChild(circle);
+
+    // Remove the ripple element after animation completes
+    setTimeout(() => {
+      if (circle) {
+        circle.remove();
+      }
+    }, 600);
+  };
+
+  const startSimulation = () => {
+    setIsSimulating(true);
+    setBatteryDepleted(false);
+    startTime.current = Date.now();
+
+    // Initialize with first reading
+    setEnergyReadings([{
+      timestamp: "0.0",
+      avgEnergy: "0.00",
+      maxEnergy: "0.00",
+      nodeCount: nodeCount,
+      protocol: routingProtocol,
+      packetSize: packetSize,
+      speed: simulationSpeed,
+      packetsSent: 0,
+      packetsReceived: 0,
+      deliveryRatio: 0,
+      remainingBattery: 100
+    }]);
+
+    // Set random water current
+    setWaterCurrent({
+      x: (Math.random() - 0.5) * 0.2,
+      y: (Math.random() - 0.5) * 0.1,
+      z: (Math.random() - 0.5) * 0.2
+    });
+
+    timer.current = setInterval(() => {
+      const elapsed = (Date.now() - startTime.current) / 1000;
+      setTimeElapsed(elapsed);
+
+      // Calculate average energy used per node (random for demo)
+      const avgEnergy = Math.min(100, energyUsed + (Math.random() * 0.2 * simulationSpeed / 50));
+      setEnergyUsed(avgEnergy);
+
+      // Update packets
+      const newPacketsSent = packetsSent + Math.floor(Math.random() * 3 * simulationSpeed / 50);
+      setPacketsSent(newPacketsSent);
+
+      const newPacketsReceived = packetsReceived + Math.floor(Math.random() * 2 * simulationSpeed / 50);
+      setPacketsReceived(newPacketsReceived);
+
+      // Calculate progress (for limited time simulation)
+      const progress = Math.min(100, (elapsed / 120) * 100); // 120 seconds max
+      setSimulationProgress(progress);
+
+      // Calculate remaining battery
+      const remainingBattery = 100 - avgEnergy;
+
+      // Add energy reading
+      setEnergyReadings(prev => [
+        ...prev,
+        {
+          timestamp: elapsed.toFixed(1),
+          avgEnergy: avgEnergy.toFixed(2),
+          maxEnergy: (avgEnergy * 1.2).toFixed(2),
+          nodeCount: nodeCount,
+          protocol: routingProtocol,
+          packetSize: packetSize,
+          speed: simulationSpeed,
+          packetsSent: newPacketsSent,
+          packetsReceived: newPacketsReceived,
+          deliveryRatio: newPacketsSent > 0 ? ((newPacketsReceived / newPacketsSent) * 100).toFixed(1) : 0,
+          remainingBattery: remainingBattery.toFixed(1)
+        }
+      ]);
+
+      // Check if battery is depleted
+      if (avgEnergy >= 95) {
+        setBatteryDepleted(true);
+        clearInterval(timer.current);
+        timer.current = null;
+      }
+    }, 1000);
+  };
+
+  const stopSimulation = () => {
+    if (timer.current) {
+      clearInterval(timer.current);
+      timer.current = null;
+    }
+    setIsSimulating(false);
+  };
+
+  const resetSimulation = () => {
+    stopSimulation();
+    setTimeElapsed(0);
+    setEnergyUsed(0);
+    setPacketsSent(0);
+    setPacketsReceived(0);
+    setBatteryDepleted(false);
+    setSimulationProgress(0);
+    setEnergyReadings([]);
+    setWaterCurrent({ x: 0, y: 0, z: 0 });
+  };
+
+  const exportCSV = () => {
+    // Get current date for filename
+    const date = new Date().toISOString().split('T')[0];
+
+    // Create CSV headers
+    const headers = [
+      'Timestamp(s)',
+      'AvgEnergy(J)',
+      'MaxEnergy(J)',
+      'NodeCount',
+      'Protocol',
+      'PacketSize(bytes)',
+      'SimSpeed',
+      'PacketsSent',
+      'PacketsReceived',
+      'DeliveryRatio(%)',
+      'RemainingBattery(%)'
+    ];
+
+    // Add simulation metadata at the top
+    let csvContent = `UWSN Simulation Data\n`;
+    csvContent += `Date: ${date}\n`;
+    csvContent += `Protocol: ${routingProtocol}\n`;
+    csvContent += `Node Count: ${nodeCount}\n`;
+    csvContent += `Packet Size: ${packetSize} bytes\n`;
+    csvContent += `Simulation Duration: ${timeElapsed.toFixed(1)} seconds\n`;
+    csvContent += `Battery Capacity: 100J\n\n`;
+
+    // Create CSV content with headers
+    csvContent += headers.join(',') + '\n';
+
+    // Add data rows
+    energyReadings.forEach(reading => {
+      const row = [
+        reading.timestamp,
+        reading.avgEnergy,
+        reading.maxEnergy,
+        reading.nodeCount,
+        reading.protocol,
+        reading.packetSize,
+        reading.speed,
+        reading.packetsSent,
+        reading.packetsReceived,
+        reading.deliveryRatio,
+        reading.remainingBattery
+      ];
+      csvContent += row.join(',') + '\n';
+    });
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `uwsn_${routingProtocol}_${nodeCount}nodes_${date}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  return (
+    <SimulationContainer>
+      <Header />
+      <ContentContainer>
+        <Sidebar />
+        <MainContent>
+          <motion.div
+            variants={fadeIn}
+            initial="hidden"
+            animate="visible"
+            custom={0}
+          >
+            <Typography variant="h4" color="primary" fontWeight={600} mb={1}>
+              Underwater Sensor Network Simulator
+            </Typography>
+            <Typography variant="body1" color="text.secondary" mb={3}>
+              Configure and run simulations of underwater wireless sensor networks with different routing protocols.
+            </Typography>
+          </motion.div>
+
+          <Grid container spacing={3}>
+            <Grid item xs={12}>
+              <motion.div
+                variants={scaleIn}
+                initial="hidden"
+                animate="visible"
+              >
+                <CanvasContainer>
+                  <Canvas camera={{ position: [100, 100, 100], fov: 60 }}>
+                    <ambientLight intensity={0.4} />
+                    <pointLight position={[100, 100, 100]} intensity={0.6} />
+                    <SimulationModel
+                      isSimulating={isSimulating}
+                      progress={simulationProgress / 100}
+                      nodeCount={nodeCount}
+                      viewMode={viewMode}
+                      routingProtocol={routingProtocol}
+                      simulationSpeed={simulationSpeed}
+                      packetSize={packetSize}
+                      waterCurrent={waterCurrent}
+                    />
+                    <OrbitControls enableDamping dampingFactor={0.05} />
+                  </Canvas>
+                </CanvasContainer>
+              </motion.div>
+            </Grid>
+
+            <Grid item xs={12} md={7}>
+              <motion.div
+                variants={fadeIn}
+                initial="hidden"
+                animate="visible"
+                custom={1}
+              >
+                <StyledCard>
+                  <CardContent>
+                    <Typography variant="h6" fontWeight={600} mb={2}>
+                      Simulation Controls
+                    </Typography>
+
+                    <Grid container spacing={3}>
+                      <Grid item xs={12} sm={6} md={4}>
+                        <FormControl fullWidth variant="outlined">
+                          <InputLabel>Protocol</InputLabel>
+                          <MuiSelect
+                            value={routingProtocol}
+                            onChange={(e) => setRoutingProtocol(e.target.value)}
+                            disabled={isSimulating}
+                            label="Protocol"
+                            sx={{ bgcolor: 'rgba(20, 20, 20, 0.8)' }}
+                          >
+                            <MenuItem value="VBF">VBF</MenuItem>
+                            <MenuItem value="HHVBF">HHVBF</MenuItem>
+                            <MenuItem value="DBR">DBR</MenuItem>
+                            <MenuItem value="EEDBR">EEDBR</MenuItem>
+                            <MenuItem value="OLSR">OLSR</MenuItem>
+                          </MuiSelect>
+                        </FormControl>
+                      </Grid>
+
+                      <Grid item xs={12} sm={6} md={4}>
+                        <FormControl fullWidth>
+                          <TextField
+                            label="Node Count"
+                            type="number"
+                            value={nodeCount}
+                            onChange={(e) => setNodeCount(parseInt(e.target.value, 10))}
+                            disabled={isSimulating}
+                            inputProps={{ min: 5, max: 100 }}
+                            sx={{ bgcolor: 'rgba(20, 20, 20, 0.8)' }}
+                          />
+                        </FormControl>
+                      </Grid>
+
+                      <Grid item xs={12} sm={6} md={4}>
+                        <FormControl fullWidth>
+                          <TextField
+                            label="Packet Size (bytes)"
+                            type="number"
+                            value={packetSize}
+                            onChange={(e) => setPacketSize(parseInt(e.target.value, 10))}
+                            disabled={isSimulating}
+                            inputProps={{ min: 16, max: 1024 }}
+                            sx={{ bgcolor: 'rgba(20, 20, 20, 0.8)' }}
+                          />
+                        </FormControl>
+                      </Grid>
+
+                      <Grid item xs={12}>
+                        <Box mb={1}>
+                          <Typography variant="body2" gutterBottom>
+                            Simulation Speed: {simulationSpeed}%
+                          </Typography>
+                        </Box>
+                        <Slider
+                          value={simulationSpeed}
+                          onChange={(e, newValue) => setSimulationSpeed(newValue)}
+                          min={10}
+                          max={200}
+                          step={10}
+                          disabled={isSimulating}
+                          sx={{
+                            color: theme.palette.primary.main,
+                            '& .MuiSlider-thumb': {
+                              width: 16,
+                              height: 16,
+                              '&:hover, &.Mui-focusVisible': {
+                                boxShadow: `0px 0px 0px 8px ${theme.palette.primary.main}20`
+                              }
+                            }
+                          }}
+                        />
+                      </Grid>
+
+                      <Grid item xs={12}>
+                        <Box sx={{ display: 'flex', gap: 2 }}>
+                          <StyledButton
+                            variant="contained"
+                            startIcon={isSimulating ? <Stop /> : <PlayArrow />}
+                            onClick={isSimulating ? stopSimulation : startSimulation}
+                            ref={buttonRef}
+                            sx={{
+                              bgcolor: isSimulating ? 'error.dark' : 'primary.main',
+                              color: isSimulating ? 'white' : 'black',
+                              '&:hover': {
+                                bgcolor: isSimulating ? 'error.main' : 'primary.light',
+                                transform: 'translateY(-2px)',
+                                boxShadow: '0 4px 8px rgba(0, 255, 0, 0.3)'
+                              }
+                            }}
+                          >
+                            {isSimulating ? 'Stop' : 'Start'}
+                          </StyledButton>
+
+                          <StyledButton
+                            variant="outlined"
+                            startIcon={<Refresh />}
+                            onClick={resetSimulation}
+                            sx={{
+                              borderColor: theme.palette.primary.main,
+                              color: theme.palette.primary.main,
+                              '&:hover': {
+                                borderColor: theme.palette.primary.light,
+                                backgroundColor: 'rgba(0, 255, 0, 0.05)',
+                                transform: 'translateY(-2px)'
+                              }
+                            }}
+                          >
+                            Reset
+                          </StyledButton>
+
+                          <StyledButton
+                            variant="outlined"
+                            startIcon={<Download />}
+                            onClick={exportCSV}
+                            disabled={energyReadings.length < 2}
+                            sx={{
+                              borderColor: energyReadings.length < 2 ? 'gray' : theme.palette.primary.main,
+                              color: energyReadings.length < 2 ? 'gray' : theme.palette.primary.main,
+                              '&:hover': {
+                                borderColor: theme.palette.primary.light,
+                                backgroundColor: 'rgba(0, 255, 0, 0.05)',
+                                transform: 'translateY(-2px)'
+                              }
+                            }}
+                          >
+                            Export CSV
+                          </StyledButton>
+                        </Box>
+                      </Grid>
+                    </Grid>
+                  </CardContent>
+                </StyledCard>
+              </motion.div>
+            </Grid>
+
+            <Grid item xs={12} md={5}>
+              <motion.div
+                variants={fadeIn}
+                initial="hidden"
+                animate="visible"
+                custom={2}
+              >
+                <StyledCard>
+                  <CardContent>
+                    <Typography variant="h6" fontWeight={600} mb={2}>
+                      Simulation Metrics
+                    </Typography>
+
+                    <Grid container spacing={2}>
+                      <Grid item xs={6}>
+                        <Typography variant="body2" color="text.secondary">
+                          Time Elapsed
+                        </Typography>
+                        <Typography variant="h5" fontWeight={600} color="primary">
+                          {timeElapsed.toFixed(1)}s
+                        </Typography>
+                      </Grid>
+
+                      <Grid item xs={6}>
+                        <Typography variant="body2" color="text.secondary">
+                          Energy Used
+                        </Typography>
+                        <Typography variant="h5" fontWeight={600} color="primary">
+                          {energyUsed.toFixed(2)}J
+                        </Typography>
+                      </Grid>
+
+                      <Grid item xs={6}>
+                        <Typography variant="body2" color="text.secondary">
+                          Packets Sent
+                        </Typography>
+                        <Typography variant="h5" fontWeight={600} color="primary">
+                          {packetsSent}
+                        </Typography>
+                      </Grid>
+
+                      <Grid item xs={6}>
+                        <Typography variant="body2" color="text.secondary">
+                          Packets Received
+                        </Typography>
+                        <Typography variant="h5" fontWeight={600} color="primary">
+                          {packetsReceived}
+                        </Typography>
+                      </Grid>
+
+                      <Grid item xs={12}>
+                        <Typography variant="body2" color="text.secondary">
+                          Delivery Ratio
+                        </Typography>
+                        <Typography variant="h5" fontWeight={600} color="primary">
+                          {packetsSent > 0
+                            ? ((packetsReceived / packetsSent) * 100).toFixed(1)
+                            : 0}%
+                        </Typography>
+                      </Grid>
+
+                      <Grid item xs={12}>
+                        <Box sx={{ mb: 1 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            Battery Remaining: {(100 - energyUsed).toFixed(1)}%
+                          </Typography>
+                        </Box>
+                        <LinearProgress
+                          variant="determinate"
+                          value={100 - energyUsed}
+                          sx={{
+                            height: 8,
+                            borderRadius: 4,
+                            backgroundColor: 'rgba(0, 255, 0, 0.2)',
+                            '& .MuiLinearProgress-bar': {
+                              backgroundColor: energyUsed > 75 ? 'error.main' :
+                                energyUsed > 50 ? 'warning.main' : 'success.main',
+                              borderRadius: 4
+                            }
+                          }}
+                        />
+                      </Grid>
+                    </Grid>
+
+                    <AnimatePresence>
+                      {batteryDepleted && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -20 }}
+                        >
+                          <Alert
+                            severity="error"
+                            sx={{ mt: 2, bgcolor: 'rgba(211, 47, 47, 0.2)' }}
+                          >
+                            Battery depleted. Simulation stopped.
+                          </Alert>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </CardContent>
+                </StyledCard>
+              </motion.div>
+            </Grid>
+
+            <Grid item xs={12}>
+              <motion.div
+                variants={fadeIn}
+                initial="hidden"
+                animate="visible"
+                custom={3}
+              >
+                <Legend>
+                  <LegendItem>
+                    <LegendDot color="#00ff00" />
+                    <Typography variant="body2">Active Node</Typography>
+                  </LegendItem>
+                  <LegendItem>
+                    <LegendDot color="#88ff88" />
+                    <Typography variant="body2">Medium Energy</Typography>
+                  </LegendItem>
+                  <LegendItem>
+                    <LegendDot color="#00aa00" />
+                    <Typography variant="body2">Low Energy</Typography>
+                  </LegendItem>
+                  <LegendItem>
+                    <LegendDot color="#111111" />
+                    <Typography variant="body2">Sink Node</Typography>
+                  </LegendItem>
+                </Legend>
+              </motion.div>
+            </Grid>
+          </Grid>
+        </MainContent>
+      </ContentContainer>
+    </SimulationContainer>
+  );
+}
+
+export default Simulation; 
