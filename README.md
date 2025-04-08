@@ -118,13 +118,13 @@ const simulationParameters = {
 ### Installation Steps
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/uwsn-simulator.git
+   git clone https://github.com/AronAbraham/UWSN-Advanced.git
    ```
 
 2. Install dependencies:
    ```bash
    cd uwsn-simulator
-   npm install
+   npm install --legacy-peer-deps
    ```
 
 3. Start the development server:
